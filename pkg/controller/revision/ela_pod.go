@@ -72,6 +72,18 @@ func MakeElaPodSpec(
 		},
 	}
 
+	devLogConfigHostPathType := corev1.HostPathFileOrCreate
+	rsyslogVolume := corev1.Volume{
+		Name: "rsyslog",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				// This file was created manually
+				Path: "/var/lib/elafros/rsyslog.conf",
+				Type: &devLogConfigHostPathType,
+			},
+		},
+	}
+
 	elaContainer := rev.Spec.Container.DeepCopy()
 	// Adding or removing an overwritten corev1.Container field here? Don't forget to
 	// update the validations in pkg/webhook.validateContainer.
@@ -97,6 +109,13 @@ func MakeElaPodSpec(
 		corev1.VolumeMount{
 			Name:      devLogVolumeName,
 			MountPath: "/dev/log",
+		},
+	)
+	elaContainer.VolumeMounts = append(
+		elaContainer.VolumeMounts,
+		corev1.VolumeMount{
+			Name:      "rsyslog",
+			MountPath: "/etc/rsyslog.conf",
 		},
 	)
 	// Add our own PreStop hook here, which should do two things:
@@ -203,7 +222,7 @@ func MakeElaPodSpec(
 
 	podSpe := &corev1.PodSpec{
 		Containers:         []corev1.Container{*elaContainer, queueContainer},
-		Volumes:            []corev1.Volume{devLogVolume, varLogVolume},
+		Volumes:            []corev1.Volume{devLogVolume, varLogVolume, rsyslogVolume},
 		ServiceAccountName: rev.Spec.ServiceAccountName,
 	}
 
