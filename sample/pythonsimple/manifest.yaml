@@ -33,7 +33,7 @@ spec:
         elafros.dev/type: app
     spec:
       container:
-        image: REPLACE_ME/python-simple:latest
+        image: gcr.io/yanweiguo-test/python-simple:latest
         env:
           - name: TARGET
             value: shiniestnewestversion

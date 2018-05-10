@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/syslog"
 	"math/rand"
 	"net/http"
 	"os"
@@ -234,6 +235,16 @@ func logHandler(client *http.Client) http.HandlerFunc {
 		}
 		jsonOutput, _ := json.Marshal(data)
 		fmt.Fprintln(os.Stdout, string(jsonOutput))
+
+		// Send logs to /dev/log
+		logwriter, err := syslog.New(syslog.LOG_INFO, "myapp-syslog")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to open /dev/log: %v", err)
+		} else {
+			msg = "A log in plain text format to /dev/log\n"
+			fmt.Fprintf(logwriter, msg)
+			fmt.Fprintln(logwriter, string(jsonOutput))
+		}
 
 		// Send logs to /var/log
 		fileName := "/var/log/sample.log"

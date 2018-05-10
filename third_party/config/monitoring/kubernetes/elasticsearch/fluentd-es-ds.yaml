@@ -77,6 +77,8 @@ spec:
       containers:
       - name: fluentd-es
         image: k8s.gcr.io/fluentd-elasticsearch:v2.0.4
+        command: ["/bin/sh"]
+        args: ["-c", "apt-get update; apt-get install -y rsyslog; service rsyslog start; /run.sh $FLUENTD_ARGS"]
         env:
         - name: FLUENTD_ARGS
           value: --no-supervisor -q
@@ -89,6 +91,8 @@ spec:
         volumeMounts:
         - name: varlog
           mountPath: /var/log
+        - name: varlibelafrosdev
+          mountPath: /var/run/rsyslog/dev
         - name: varlibdockercontainers
           mountPath: /var/lib/docker/containers
           readOnly: true
@@ -97,6 +101,8 @@ spec:
           readOnly: true
         - name: config-volume
           mountPath: /etc/fluent/config.d
+        - name: rsyslog-config-volume
+          mountPath: /etc/rsyslog.d
       nodeSelector:
         beta.kubernetes.io/fluentd-ds-ready: "true"
       terminationGracePeriodSeconds: 30
@@ -104,6 +110,9 @@ spec:
       - name: varlog
         hostPath:
           path: /var/log
+      - name: varlibelafrosdev
+        hostPath:
+          path: /var/lib/elafros/dev
       - name: varlibdockercontainers
         hostPath:
           path: /var/lib/docker/containers
@@ -114,3 +123,6 @@ spec:
       - name: config-volume
         configMap:
           name: fluentd-es-config
+      - name: rsyslog-config-volume
+        configMap:
+          name: rsyslog-config

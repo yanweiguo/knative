@@ -36,6 +36,7 @@ const (
 	queueContainerCPU   = "25m"
 	fluentdContainerCPU = "75m"
 
+	devLogVolumeName           = "devlog"
 	fluentdConfigMapVolumeName = "configmap"
 	varLogVolumeName           = "varlog"
 )
@@ -60,6 +61,16 @@ func MakeElaPodSpec(
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
 	}
+	devLogHostPathType := corev1.HostPathSocket
+	devLogVolume := corev1.Volume{
+		Name: devLogVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/var/lib/elafros/dev/log",
+				Type: &devLogHostPathType,
+			},
+		},
+	}
 
 	elaContainer := rev.Spec.Container.DeepCopy()
 	// Adding or removing an overwritten corev1.Container field here? Don't forget to
@@ -79,6 +90,13 @@ func MakeElaPodSpec(
 		corev1.VolumeMount{
 			Name:      varLogVolumeName,
 			MountPath: "/var/log",
+		},
+	)
+	elaContainer.VolumeMounts = append(
+		elaContainer.VolumeMounts,
+		corev1.VolumeMount{
+			Name:      devLogVolumeName,
+			MountPath: "/dev/log",
 		},
 	)
 	// Add our own PreStop hook here, which should do two things:
@@ -185,7 +203,7 @@ func MakeElaPodSpec(
 
 	podSpe := &corev1.PodSpec{
 		Containers:         []corev1.Container{*elaContainer, queueContainer},
-		Volumes:            []corev1.Volume{varLogVolume},
+		Volumes:            []corev1.Volume{devLogVolume, varLogVolume},
 		ServiceAccountName: rev.Spec.ServiceAccountName,
 	}
 

@@ -16,6 +16,8 @@ limitations under the License.
 
 import os
 import traceback
+import logging
+import logging.handlers
 
 from flask import Flask
 
@@ -24,6 +26,15 @@ app = Flask(__name__)
 
 @app.route('/')
 def get():
+  my_logger = logging.getLogger('MyLogger')
+  my_logger.setLevel(logging.INFO)
+
+  handler = logging.handlers.SysLogHandler(address = '/dev/log')
+
+  my_logger.addHandler(handler)
+
+  my_logger.debug('this is debug')
+  my_logger.critical('this is critical')
   target = os.environ.get('TARGET') or 'NOT SPECIFIED'
   return 'Hello World from Python: %s!\n' % target
 

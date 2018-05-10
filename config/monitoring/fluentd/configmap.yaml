@@ -50,6 +50,11 @@ data:
     <source>
       @type forward
     </source>
+  syslog.input.conf: |-
+    <source>
+      @type unix
+      path /dev/log
+    </source>
   output.conf: |-
     # Add Kubernetes metadata and send to Elastic Search
     <filter kubernetes.**>
@@ -77,3 +82,14 @@ data:
         overflow_action block
       </buffer>
     </match>
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: rsyslog-config
+  namespace: monitoring
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
+data:
+  socketpath.conf: |-
+    input(type="imuxsock" Socket="/var/run/rsyslog/dev/log" CreatePath="on")
