@@ -91,6 +91,7 @@ spec:
         volumeMounts:
         - name: varlog
           mountPath: /var/log
+          subPath: subpath
         - name: varlibelafrosdev
           mountPath: /var/run/rsyslog/dev
         - name: varlibdockercontainers
