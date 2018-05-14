@@ -74,11 +74,17 @@ spec:
     spec:
       priorityClassName: system-node-critical
       serviceAccountName: fluentd-es
+      initContainers:
+      - name: init-link
+        image: k8s.gcr.io/fluentd-elasticsearch:v2.0.4
+        command: ["/bin/sh"]
+        args: ["-c", "rm -f /var/lib/elafros/link/devlog; ln -s /rsyslog/dev/log /var/lib/elafros/link/devlog"]
+        volumeMounts:
+        - name: varlibelafroslink
+          mountPath: /var/lib/elafros/link
       containers:
       - name: fluentd-es
         image: k8s.gcr.io/fluentd-elasticsearch:v2.0.4
-        command: ["/bin/sh"]
-        args: ["-c", "apt-get update; apt-get install -y rsyslog; service rsyslog start; /run.sh $FLUENTD_ARGS"]
         env:
         - name: FLUENTD_ARGS
           value: --no-supervisor -q
@@ -91,9 +97,6 @@ spec:
         volumeMounts:
         - name: varlog
           mountPath: /var/log
-          subPath: subpath
-        - name: varlibelafrosdev
-          mountPath: /var/run/rsyslog/dev
         - name: varlibdockercontainers
           mountPath: /var/lib/docker/containers
           readOnly: true
@@ -102,8 +105,6 @@ spec:
           readOnly: true
         - name: config-volume
           mountPath: /etc/fluent/config.d
-        - name: rsyslog-config-volume
-          mountPath: /etc/rsyslog.d
       nodeSelector:
         beta.kubernetes.io/fluentd-ds-ready: "true"
       terminationGracePeriodSeconds: 30
@@ -127,3 +128,7 @@ spec:
       - name: rsyslog-config-volume
         configMap:
           name: rsyslog-config
+      - name: varlibelafroslink
+        hostPath:
+          path: /var/lib/elafros/link
+          type: DirectoryOrCreate

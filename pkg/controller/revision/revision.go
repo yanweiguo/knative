@@ -62,6 +62,7 @@ const (
 	elaPort                 = 8080
 
 	fluentdContainerName string = "fluentd-proxy"
+	rsyslogContainerName string = "rsyslog-proxy"
 	queueContainerName   string = "queue-proxy"
 	// queueSidecarName set by -queueSidecarName flag
 	queueHttpPortName string = "queue-http-port"

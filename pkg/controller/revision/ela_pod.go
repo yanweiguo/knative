@@ -36,9 +36,11 @@ const (
 	queueContainerCPU   = "25m"
 	fluentdContainerCPU = "75m"
 
-	devLogVolumeName           = "devlog"
-	fluentdConfigMapVolumeName = "configmap"
-	varLogVolumeName           = "varlog"
+	fluentdConfigMapVolumeName    = "configmap"
+	varLibElaLinkDevVolumeName    = "varlibelafroslinkdev"
+	varLibElaLinkDevLogVolumeName = "varlibelafroslinkdev"
+	shareVolumeName               = "share"
+	varLogVolumeName              = "varlog"
 )
 
 func hasHttpPath(p *corev1.Probe) bool {
@@ -61,28 +63,35 @@ func MakeElaPodSpec(
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
 	}
-	devLogHostPathType := corev1.HostPathSocket
-	devLogVolume := corev1.Volume{
-		Name: devLogVolumeName,
+
+	shareVolume := corev1.Volume{
+		Name: shareVolumeName,
 		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: "/var/lib/elafros/dev/log",
-				Type: &devLogHostPathType,
-			},
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
 	}
 
-	devLogConfigHostPathType := corev1.HostPathFileOrCreate
-	rsyslogVolume := corev1.Volume{
-		Name: "rsyslog",
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				// This file was created manually
-				Path: "/var/lib/elafros/rsyslog.conf",
-				Type: &devLogConfigHostPathType,
-			},
-		},
-	}
+	// varLibElaLinkDevHostPathType := corev1.HostPathDirectoryOrCreate
+	// varLibElaLinkDevVolume := corev1.Volume{
+	// 	Name: varLibElaLinkDevVolumeName,
+	// 	VolumeSource: corev1.VolumeSource{
+	// 		HostPath: &corev1.HostPathVolumeSource{
+	// 			Path: fmt.Sprintf("/var/lib/elafros/dev/%s/%s/log", rev.Namespace, rev.Name),
+	// 			Type: &varLibElaLinkDevHostPathType,
+	// 		},
+	// 	},
+	// }
+
+	// varLibElaLinkDevLogHostPathType := corev1.HostPathSocket
+	// varLibElaLinkDevLogVolume := corev1.Volume{
+	// 	Name: varLibElaLinkDevLogVolumeName,
+	// 	VolumeSource: corev1.VolumeSource{
+	// 		HostPath: &corev1.HostPathVolumeSource{
+	// 			Path: fmt.Sprintf("/var/lib/elafros/dev/%s/%s", rev.Namespace, rev.Name),
+	// 			Type: &varLibElaLinkDevLogHostPathType,
+	// 		},
+	// 	},
+	// }
 
 	elaContainer := rev.Spec.Container.DeepCopy()
 	// Adding or removing an overwritten corev1.Container field here? Don't forget to
@@ -107,15 +116,8 @@ func MakeElaPodSpec(
 	elaContainer.VolumeMounts = append(
 		elaContainer.VolumeMounts,
 		corev1.VolumeMount{
-			Name:      devLogVolumeName,
-			MountPath: "/dev/log",
-		},
-	)
-	elaContainer.VolumeMounts = append(
-		elaContainer.VolumeMounts,
-		corev1.VolumeMount{
-			Name:      "rsyslog",
-			MountPath: "/etc/rsyslog.conf",
+			Name:      shareVolumeName,
+			MountPath: "/share",
 		},
 	)
 	// Add our own PreStop hook here, which should do two things:
@@ -134,6 +136,11 @@ func MakeElaPodSpec(
 				Path: RequestQueueQuitPath,
 			},
 		},
+		PostStart: &corev1.Handler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"/share/bin/ln", "-s", "-f", "/share/dev/log", "/dev/log"},
+			},
+		},
 	}
 	// If the client provided a readiness check endpoint, we should
 	// fill in the port for them so that requests also go through
@@ -143,6 +150,35 @@ func MakeElaPodSpec(
 	// own port in readiness checks.
 	if hasHttpPath(elaContainer.ReadinessProbe) {
 		elaContainer.ReadinessProbe.Handler.HTTPGet.Port = intstr.FromInt(RequestQueuePort)
+	}
+
+	rsyslogContainer := corev1.Container{
+		Name:  rsyslogContainerName,
+		Image: "gcr.io/yanweiguo-test/rsyslog:latest",
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      shareVolumeName,
+				MountPath: "/share",
+			},
+		},
+		Env: []corev1.EnvVar{
+			{
+				Name:  "NAMESPACE",
+				Value: rev.Namespace,
+			},
+			{
+				Name:  "ELA_CONTAINER",
+				Value: "ela-container",
+			},
+			{
+				Name: "POD_NAME",
+				ValueFrom: &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
+						FieldPath: "metadata.name",
+					},
+				},
+			},
+		},
 	}
 
 	queueContainer := corev1.Container{
@@ -221,8 +257,10 @@ func MakeElaPodSpec(
 	}
 
 	podSpe := &corev1.PodSpec{
-		Containers:         []corev1.Container{*elaContainer, queueContainer},
-		Volumes:            []corev1.Volume{devLogVolume, varLogVolume, rsyslogVolume},
+		// rsyslogContainer should start before ela-container to create file and
+		// socket.
+		Containers:         []corev1.Container{queueContainer, rsyslogContainer, *elaContainer},
+		Volumes:            []corev1.Volume{shareVolume, varLogVolume},
 		ServiceAccountName: rev.Spec.ServiceAccountName,
 	}
 
