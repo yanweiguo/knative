@@ -230,7 +230,7 @@ func logHandler(client *http.Client) http.HandlerFunc {
 		fmt.Fprintln(os.Stdout, msg)
 
 		data := map[string]string{
-			"log":  "json 1\njson 2",
+			"log":  "A log in JSON format to STDOUT",
 			"time": timestamp.String(),
 		}
 		jsonOutput, _ := json.Marshal(data)
@@ -241,8 +241,13 @@ func logHandler(client *http.Client) http.HandlerFunc {
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to open /dev/log: %v", err)
 		} else {
-			msg = "line 1\nline2\n"
+			msg = "A log in plain text format to /dev/log"
 			fmt.Fprintf(logwriter, msg)
+			data = map[string]string{
+				"log":  "A log in JSON format to /dev/log",
+				"time": timestamp.String(),
+			}
+			jsonOutput, _ := json.Marshal(data)
 			fmt.Fprintln(logwriter, string(jsonOutput))
 		}
 

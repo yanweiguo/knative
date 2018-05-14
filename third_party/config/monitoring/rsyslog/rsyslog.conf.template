@@ -3,6 +3,8 @@
 #           For more information see
 #           /usr/share/doc/rsyslog-doc/html/rsyslog_conf.html
 
+global(processInternalMessages="on")
+
 #################
 #### MODULES ####
 #################
@@ -13,6 +15,12 @@ input(type="imuxsock" Socket="/share/dev/log" CreatePath="on")
 #module(load="imklog")   # provides kernel logging support
 #module(load="immark")  # provides --MARK-- message capability
 
+module(load="imptcp")
+module(load="imudp" TimeRequery="500")
+module(load="omstdout")
+module(load="omfwd")
+module(load="mmjsonparse")
+module(load="mmutf8fix")
 # provides UDP syslog reception
 #module(load="imudp")
 #input(type="imudp" port="514")
@@ -89,3 +97,11 @@ $template ElaOutputFile,"/var/lib/elafros/syslog/${POD_NAME}_${NAMESPACE}_${ELA_
 # Emergencies are sent to everybody logged in.
 #
 *.emerg                         :omusrmsg:*
+
+#################### default ruleset begins ####################
+# we emit our own messages to docker console:
+syslog.* :omstdout:
+
+#include(file="/config/droprules.conf" mode="optional")  # this permits the user to easily drop unwanted messages
+action(name="main_utf8fix" type="mmutf8fix" replacementChar="?")
+action(type="omfwd" Target="127.0.0.1" Port="5140" Protocol="tcp")

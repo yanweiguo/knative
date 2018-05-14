@@ -74,14 +74,6 @@ spec:
     spec:
       priorityClassName: system-node-critical
       serviceAccountName: fluentd-es
-      initContainers:
-      - name: init-link
-        image: k8s.gcr.io/fluentd-elasticsearch:v2.0.4
-        command: ["/bin/sh"]
-        args: ["-c", "rm -f /var/lib/elafros/link/devlog; ln -s /rsyslog/dev/log /var/lib/elafros/link/devlog"]
-        volumeMounts:
-        - name: varlibelafroslink
-          mountPath: /var/lib/elafros/link
       containers:
       - name: fluentd-es
         image: k8s.gcr.io/fluentd-elasticsearch:v2.0.4
